@@ -14,6 +14,9 @@ from langchain.tools import tool
 from langchain_core.messages import HumanMessage, ToolMessage
 from tavily import TavilyClient
 from rich import print
+from langchain.agents.middleware import wrap_tool_call
+
+from langchain.agents import create_agent
 
 
 # ============================================================
@@ -98,91 +101,129 @@ llm = ChatGroq(
 )
 
 
-# ============================================================
-# 4. Binding Tools with LLM
-# ============================================================
+# # ============================================================
+# # 4. Binding Tools with LLM
+# # ============================================================
 
-tools = {
-    "get_weather": get_weather,
-    "get_news": get_news
-}
+# tools = {
+#     "get_weather": get_weather,
+#     "get_news": get_news
+# }
 
-llm_with_tool = llm.bind_tools(
-    [get_weather, get_news]
+# llm_with_tool = llm.bind_tools(
+#     [get_weather, get_news]
+# )
+
+
+# # ============================================================
+# # 5. Agent Loop
+# # ============================================================
+
+# messages = []
+
+# print("[bold cyan]City Intelligence System[/bold cyan]")
+# print("[yellow]Type 'exit' to quit[/yellow]\n")
+
+
+# while True:
+
+#     user_input = input("You: ")
+
+#     if user_input.lower() == "exit":
+#         break
+
+#     messages.append(
+#         HumanMessage(content=user_input)
+#     )
+
+#     while True:
+
+#         result = llm_with_tool.invoke(messages)
+
+#         messages.append(result)
+
+#         # Check whether the LLM wants to call a tool
+#         if result.tool_calls:
+
+#             for tool_call in result.tool_calls:
+
+#                 tool_name = tool_call["name"]
+
+#                 # ---------------- Human in the Loop ----------------
+
+#                 confirm = input(
+#                     f"\nAgent wants to call {tool_name}. "
+#                     "Approve? (yes/no): "
+#                 )
+
+#                 if confirm.lower() != "yes":
+
+#                     print(
+#                         "[bold red]Tool call denied. "
+#                         "I cannot get the requested information.[/bold red]"
+#                     )
+
+#                     break
+
+#                 # ---------------- Execute Tool ---------------------
+
+#                 tool_result = tools[tool_name].invoke(tool_call["args"])
+
+#                 messages.append(
+#                     ToolMessage(
+#                         content=str(tool_result),
+#                         tool_call_id=tool_call["id"]
+#                     )
+#                 )
+
+#             else:
+#                 continue
+
+#             break
+
+#         else:
+
+#             print("\n[bold green]Final Answer:[/bold green]\n")
+#             print(result.content)
+
+#             print("\n" + "=" * 50 + "\n")
+
+#             break
+
+
+@wrap_tool_call
+def human_approval(request, handler):
+    """Ask for human approval before every tool call"""
+    tool_name = request.tool_call["name"]
+    confirm = input(f"Agent wants to call '{tool_name}'. Approve? (yes/no): ")
+
+    if confirm.lower() != "yes":
+        return ToolMessage(
+            content="Tool call denied by user.",
+            tool_call_id = request.tool_call["id"]
+        )
+    
+    return handler(request)
+
+agent = create_agent(
+    llm,
+    tools= [get_weather, get_news],
+    system_prompt="You are a helpfull city assistant",
+    middleware=[human_approval]
 )
 
 
-# ============================================================
-# 5. Agent Loop
-# ============================================================
-
-messages = []
-
-print("[bold cyan]City Intelligence System[/bold cyan]")
-print("[yellow]Type 'exit' to quit[/yellow]\n")
-
+print("City Agent | Type exit to quit")
 
 while True:
+    user_input = input("You : ")
 
-    user_input = input("You: ")
-
-    if user_input.lower() == "exit":
+    if user_input.lower() == 'exit':
         break
 
-    messages.append(
-        HumanMessage(content=user_input)
-    )
+    result = agent.invoke({"messages": [{"role": "user", "content": user_input}]})
 
-    while True:
+    print("Bot :", result['messages'][-1].content)
+    
 
-        result = llm_with_tool.invoke(messages)
 
-        messages.append(result)
-
-        # Check whether the LLM wants to call a tool
-        if result.tool_calls:
-
-            for tool_call in result.tool_calls:
-
-                tool_name = tool_call["name"]
-
-                # ---------------- Human in the Loop ----------------
-
-                confirm = input(
-                    f"\nAgent wants to call {tool_name}. "
-                    "Approve? (yes/no): "
-                )
-
-                if confirm.lower() != "yes":
-
-                    print(
-                        "[bold red]Tool call denied. "
-                        "I cannot get the requested information.[/bold red]"
-                    )
-
-                    break
-
-                # ---------------- Execute Tool ---------------------
-
-                tool_result = tools[tool_name].invoke(tool_call["args"])
-
-                messages.append(
-                    ToolMessage(
-                        content=str(tool_result),
-                        tool_call_id=tool_call["id"]
-                    )
-                )
-
-            else:
-                continue
-
-            break
-
-        else:
-
-            print("\n[bold green]Final Answer:[/bold green]\n")
-            print(result.content)
-
-            print("\n" + "=" * 50 + "\n")
-
-            break
