@@ -6,3 +6,8 @@ langchain-chroma
 sentence-transformers
 python-dotenv
 langchain-community
+
+
+streamlit
+requests
+tavily-python
