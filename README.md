@@ -169,30 +169,6 @@ http://localhost:8501
 7. The tool response is added to the conversation messages.
 8. The LLM processes the tool response and generates the final answer.
 
-## 🔐 Environment Variables
-
-For security, API keys are stored in environment variables using the `.env` file.
-
-Never upload your `.env` file or expose your API keys on GitHub.
-
-Add the following to your `.gitignore`:
-
-```gitignore
-# Environment variables
-.env
-
-# Virtual environment
-.venv/
-
-# Python cache
-__pycache__/
-*.pyc
-
-# IDE files
-.vscode/
-.idea/
-```
-
 ## 📚 Concepts Implemented
 
 Through this project, I gained practical experience with:
